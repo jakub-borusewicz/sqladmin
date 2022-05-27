@@ -1,9 +1,9 @@
-from typing import Any, AsyncGenerator, Optional
+from typing import Any, AsyncGenerator, Optional, List
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.orm import sessionmaker
-from sqlmodel import Field, Session, SQLModel
+from sqlmodel import Field, Session, SQLModel, Relationship
 
 from sqladmin.forms import get_model_form
 from tests.common import sync_engine as engine
@@ -15,11 +15,22 @@ LocalSession = sessionmaker(bind=engine, class_=Session)
 session: Session = LocalSession()
 
 
+class Team(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    headquarters: str
+
+    heroes: List["Hero"] = Relationship(back_populates="team")
+
+
 class Hero(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True, max_length=5)
     secret_name: str
     age: Optional[int] = None
+
+    team_id: Optional[int] = Field(default=None, foreign_key="team.id")
+    team: Optional[Team] = Relationship(back_populates="heroes")
 
 
 @pytest.fixture
@@ -37,3 +48,7 @@ async def client(prepare_database: Any) -> AsyncGenerator[AsyncClient, None]:
 
 async def test_model_form_converter_exception(client: AsyncClient) -> None:
     await get_model_form(model=Hero, engine=engine)
+
+
+def test_admin_supports_relationship() -> None:
+    ...
